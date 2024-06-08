@@ -1,69 +1,58 @@
-//create a express app
-const exp=require('express')
-const app=exp()
-require('dotenv').config()
-const MongoDb=require('mongodb').MongoClient
-const path=require('path')
-const cors=require("cors");
+const express = require('express');
+const app = express();
+const { MongoClient } = require('mongodb');
+const path = require('path');
+const cors = require('cors');
+require('dotenv').config();
 
+// Environment variables
+const { PORT, DB_URL } = process.env;
 
-//deploy react to my server...
-app.use(exp.static(path.join(__dirname,'../client/build')))
+// Serve static files from the React app
+app.use(express.static(path.resolve(__dirname, '../client/build')));
 
-MongoDb.connect(process.env.DB_URL)
-.then(client=>{
-    //get db object
-    const dbObj=client.db('BlogAppDB')
-    //get collection object
-    const userCollection=dbObj.collection('users')
-    const authorCollection=dbObj.collection('authorCollection')
-    const articlesCollection=dbObj.collection('articlesCollection')
-    const AdminCollection=dbObj.collection('AdminCollection');
-    //provide to all other files...
-    app.set('userCollection',userCollection)
-    app.set('authorCollection',authorCollection)
-    app.set('articlesCollection',articlesCollection)
-    app.set('AdminCollection',AdminCollection);
+// MongoDB connection
+MongoClient.connect(DB_URL, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(client => {
+    const db = client.db('BlogAppDB');
+    const userCollection = db.collection('users');
+    const authorCollection = db.collection('authorCollection');
+    const articlesCollection = db.collection('articlesCollection');
+    const adminCollection = db.collection('AdminCollection');
 
+    app.set('userCollection', userCollection);
+    app.set('authorCollection', authorCollection);
+    app.set('articlesCollection', articlesCollection);
+    app.set('adminCollection', adminCollection);
 
-    console.log("DB connect success")
-})
-.catch(err=>console.log("Error ocurred in DB connection..."))
+    console.log('DB connect success');
+  })
+  .catch(err => {
+    console.error('Error occurred in DB connection:', err);
+    process.exit(1); // Exit the process on connection error
+  });
 
+// Middleware
+app.use(cors());
+app.use(express.json());
 
+// API routes
+app.use('/user-api', require('./APIs/users-api'));
+app.use('/author-api', require('./APIs/author-api'));
+app.use('/admin-api', require('./APIs/admin-api'));
 
-//to parse the body of req
-app.use(exp.json())
+// Serve React app for any unknown routes
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../client/build/index.html'));
+});
 
+// Error handling middleware (should be at the end)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ message: 'Internal Server Error' });
+});
 
-
-
-//import API routes
-const userapp=require('./APIs/users-api')
-const authorapp=require('./APIs/author-api')
-const adminapp=require('./APIs/admin-api')
-
-
-//if path starts with user-api , send req to userapp
-app.use('/user-api',userapp)
-
-//if path starts with author-api , send req to authorapp
-app.use('/author-api',authorapp)
-
-//if path starts with admin-api , send req to adminapp
-app.use('/admin-api',adminapp)
-
-
-//deals with page refresh...
-app.use((req,res,next)=>{
-    res.sendFile(path.join(__dirname,'../client/build/index.html'))
-})
-
-//error handling
-app.use((err,req,res,next)=>{
-    res.send({message:"Eroor occured..."})
-})
-//port 
-const port=process.env.PORT;
-
-app.listen(port,()=>{console.log("Server running at port ",port)}) 
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server running at port ${PORT}`);
+});
