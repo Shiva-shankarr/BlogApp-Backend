@@ -1,15 +1,15 @@
 const express = require('express');
 const app = express();
-const { MongoClient } = require('mongodb');
-const path = require('path');
-const cors = require('cors');
 require('dotenv').config();
+const MongoClient = require('mongodb').MongoClient;
+const cors = require('cors');
 
 // Environment variables
 const { PORT, DB_URL } = process.env;
 
-// Serve static files from the React app
-app.use(express.static(path.resolve(__dirname, '../client/build')));
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // MongoDB connection
 MongoClient.connect(DB_URL, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -32,19 +32,10 @@ MongoClient.connect(DB_URL, { useNewUrlParser: true, useUnifiedTopology: true })
     process.exit(1); // Exit the process on connection error
   });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
 // API routes
 app.use('/user-api', require('./APIs/users-api'));
 app.use('/author-api', require('./APIs/author-api'));
 app.use('/admin-api', require('./APIs/admin-api'));
-
-// Serve React app for any unknown routes
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../client/build/index.html'));
-});
 
 // Error handling middleware (should be at the end)
 app.use((err, req, res, next) => {
@@ -53,6 +44,6 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`Server running at port ${PORT}`);
+app.listen(PORT || 5000, () => {
+  console.log(`Server running at port ${PORT || 5000}`);
 });
